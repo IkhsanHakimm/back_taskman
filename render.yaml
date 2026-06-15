@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: back-taskman
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MONGODB_HOST
+        value: mongodb+srv://taskmanadmin:TaskmanPass%40123@taskman.pwjcmtb.mongodb.net/?appName=taskman
+      - key: MONGODB_DB
+        value: taskman_db
+      - key: JWT_EXPIRES_MINUTES
+        value: "60"
+      - key: MISTRAL_API_KEY
+        value: gNtxgsFdh0HU5sPJ6GKpkOS3IG4ct8v0
+      - key: MISTRAL_MODEL
+        value: mistral-small-latest
+      - key: MAIL_SERVER
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        value: 9a.13.dwinata1@gmail.com
+      - key: MAIL_PASSWORD
+        value: uyhkdbdugzunmuct
+      - key: MAIL_FROM
+        value: 9a.13.dwinata1@gmail.com
+      - key: OTP_EXPIRES_MINUTES
+        value: "10"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
