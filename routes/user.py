@@ -36,10 +36,20 @@ def update_profile():
     data     = request.get_json() or {}
     username = data.get('username', '').strip()
     email    = data.get('email', '').strip().lower()
+    
+    # Extended profile fields
+    nama_lengkap  = data.get('nama_lengkap', '').strip()
+    nomor_wa      = data.get('nomor_wa', '').strip()
+    alamat        = data.get('alamat', '').strip()
+    tanggal_lahir = data.get('tanggal_lahir', '').strip()
+    nim           = data.get('nim', '').strip()
+    program_studi = data.get('program_studi', '').strip()
+    fakultas      = data.get('fakultas', '').strip()
+    
     user     = g.current_user
 
-    if not username and not email:
-        return jsonify({'error': 'Minimal satu field (username/email) wajib diisi'}), 400
+    if not username and not email and not any([nama_lengkap, nomor_wa, alamat, tanggal_lahir, nim, program_studi, fakultas]):
+        return jsonify({'error': 'Tidak ada data yang diperbarui'}), 400
 
     # Cek duplikat username (jika berubah)
     if username and username != user.username:
@@ -56,6 +66,14 @@ def update_profile():
         user.username = username
     if email:
         user.email = email
+        
+    if 'nama_lengkap' in data: user.nama_lengkap = nama_lengkap
+    if 'nomor_wa' in data: user.nomor_wa = nomor_wa
+    if 'alamat' in data: user.alamat = alamat
+    if 'tanggal_lahir' in data: user.tanggal_lahir = tanggal_lahir
+    if 'nim' in data: user.nim = nim
+    if 'program_studi' in data: user.program_studi = program_studi
+    if 'fakultas' in data: user.fakultas = fakultas
 
     user.save()
 

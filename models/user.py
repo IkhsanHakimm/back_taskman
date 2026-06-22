@@ -13,6 +13,15 @@ class User(db.Document):
     # Google Workspace integration
     google_email     = db.StringField(default='')
     google_connected = db.BooleanField(default=False)
+    # Extended Profile (Progressive Profiling)
+    nama_lengkap     = db.StringField(default='')
+    nomor_wa         = db.StringField(default='')
+    alamat           = db.StringField(default='')
+    tanggal_lahir    = db.StringField(default='')
+    nim              = db.StringField(default='')
+    program_studi    = db.StringField(default='')
+    fakultas         = db.StringField(default='')
+    
     created_at       = db.DateTimeField(default=datetime.utcnow)
 
     meta = {
@@ -38,6 +47,13 @@ class User(db.Document):
             'is_verified': self.is_verified,
             'google_email': self.google_email or '',
             'google_connected': self.google_connected or False,
+            'nama_lengkap': self.nama_lengkap or '',
+            'nomor_wa': self.nomor_wa or '',
+            'alamat': self.alamat or '',
+            'tanggal_lahir': self.tanggal_lahir or '',
+            'nim': self.nim or '',
+            'program_studi': self.program_studi or '',
+            'fakultas': self.fakultas or '',
             'created_at': self.created_at.isoformat()
         }
 

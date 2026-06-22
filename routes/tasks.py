@@ -296,3 +296,62 @@ def generate_breakdown(task_id: str):
 
     _log_activity(g.current_user, task, "task_updated", {"action": "ai_breakdown_generated"})
     return jsonify(task.ai_breakdown.to_dict()), 200
+
+
+@tasks_bp.route("/<task_id>/steps/<int:step_index>/toggle", methods=["PATCH"])
+@token_required
+def toggle_step(task_id: str, step_index: int):
+    """
+    Toggle is_completed status of a specific AI Breakdown Step.
+    Updates the overall task status automatically based on progress.
+    """
+    try:
+        task = Task.objects.get(id=task_id, owner=g.current_user)
+    except DoesNotExist:
+        return jsonify({"error": "task not found"}), 404
+
+    if not task.ai_breakdown or step_index < 0 or step_index >= len(task.ai_breakdown.steps):
+        return jsonify({"error": "invalid step index"}), 400
+
+    data = request.get_json() or {}
+    
+    step = task.ai_breakdown.steps[step_index]
+    new_status = data.get("is_completed", not step.is_completed)
+
+    # Pastikan berurutan: jika mencentang, langkah sebelumnya harus sudah dicentang
+    if new_status and step_index > 0:
+        for i in range(step_index):
+            if not task.ai_breakdown.steps[i].is_completed:
+                return jsonify({"error": "Langkah sebelumnya harus diselesaikan terlebih dahulu"}), 400
+
+    # Update nilai
+    if new_status:
+        step.is_completed = True
+    else:
+        # Jika uncentang, uncentang juga semua langkah setelahnya
+        for i in range(step_index, len(task.ai_breakdown.steps)):
+            task.ai_breakdown.steps[i].is_completed = False
+
+    # Hitung progress
+    completed_count = sum(1 for s in task.ai_breakdown.steps if s.is_completed)
+    total_steps = len(task.ai_breakdown.steps)
+
+    if completed_count == 0:
+        task.status = "pending"
+    elif completed_count == total_steps:
+        task.status = "done"
+    else:
+        task.status = "in_progress"
+
+    try:
+        task.save()
+    except ValidationError as exc:
+        return jsonify({"error": "validation error", "details": str(exc)}), 400
+
+    _log_activity(
+        g.current_user, 
+        task, 
+        "task_updated", 
+        {"action": "ai_step_toggled", "step_index": step_index, "is_completed": step.is_completed}
+    )
+    return jsonify(task.to_dict()), 200

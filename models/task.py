@@ -12,6 +12,7 @@ class AIBreakdownStep(db.EmbeddedDocument):
     description = db.StringField()
     estimasi = db.StringField()       # contoh: "1–2 jam"
     iconName = db.StringField()       # nama icon Flutter, contoh: "architecture"
+    is_completed = db.BooleanField(default=False)
 
     def to_dict(self):
         return {
@@ -19,6 +20,7 @@ class AIBreakdownStep(db.EmbeddedDocument):
             "description": self.description,
             "estimasi": self.estimasi,
             "iconName": self.iconName,
+            "is_completed": self.is_completed,
         }
 
 
