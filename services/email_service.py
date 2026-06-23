@@ -100,7 +100,7 @@ def send_otp_email(to_email: str, username: str, otp_code: str) -> bool:
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=15) as server:
+        with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=15, source_address=('0.0.0.0', 0)) as server:
             server.ehlo()
             server.starttls()
             server.login(MAIL_USERNAME, MAIL_PASSWORD)

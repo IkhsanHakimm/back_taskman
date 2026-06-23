@@ -271,3 +271,75 @@ def disconnect_google():
         set__google_connected= False,
     )
     return jsonify({'message': 'Koneksi Google dilepas'}), 200
+
+
+# ─── Google Direct Login ───────────────────────────────────────────────────────
+
+@auth_bp.route('/google-login', methods=['POST'])
+def google_login():
+    """
+    Jalur khusus login menggunakan Google.
+    Menerima email, google_id, dan display_name.
+    Jika user ada, langsung izinkan masuk. Jika tidak ada, daftarkan otomatis.
+    """
+    data         = request.get_json() or {}
+    email        = data.get('email', '').strip().lower()
+    google_id    = data.get('google_id', '').strip()
+    display_name = data.get('display_name', '').strip()
+
+    if not email or not google_id:
+        return jsonify({'error': 'email dan google_id wajib diisi'}), 400
+
+    user = User.objects(email=email).first()
+
+    if not user:
+        # User belum ada, otomatis daftarkan
+        base_username = display_name.replace(' ', '_').lower() if display_name else email.split('@')[0]
+        username = base_username
+        
+        # Pastikan username unik
+        counter = 1
+        while User.objects(username=username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        import secrets
+        user = User(
+            username=username,
+            email=email,
+            is_verified=True,
+            google_email=email,
+            google_connected=True,
+            nama_lengkap=display_name
+        )
+        user.set_password(f"g_{secrets.token_urlsafe(16)}")
+        user.save()
+    else:
+        # Jika user sudah ada, pastikan status terverifikasi dan terkoneksi
+        update_needed = False
+        if not user.google_connected:
+            user.google_connected = True
+            user.google_email = email
+            update_needed = True
+        if not user.is_verified:
+            user.is_verified = True
+            update_needed = True
+            
+        if update_needed:
+            user.save()
+
+    # Generate JWT token
+    secret      = current_app.config.get('SECRET_KEY')
+    exp_minutes = current_app.config.get('JWT_EXPIRES_MINUTES', 60)
+    payload = {
+        'sub': str(user.id),
+        'iat': datetime.utcnow(),
+        'exp': datetime.utcnow() + timedelta(minutes=exp_minutes),
+    }
+    token = jwt.encode(payload, secret, algorithm='HS256')
+
+    return jsonify({
+        'message': 'Login Google berhasil',
+        'access_token': token,
+        'user': user.to_dict(),
+    }), 200
