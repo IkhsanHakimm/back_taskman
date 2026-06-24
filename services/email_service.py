@@ -1,50 +1,26 @@
 """
 email_service.py
 ----------------
-Service untuk mengirim email OTP ke user menggunakan Gmail SMTP.
-Konfigurasi diambil dari environment variables.
+Service untuk mengirim email OTP ke user menggunakan Brevo HTTP API.
+Menggantikan SMTP untuk menghindari blokir dari server cloud (seperti Railway).
 """
 
 import os
-import smtplib
+import requests
 import logging
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import socket
-
-# --- HACK: Paksa Python hanya menggunakan IPv4 ---
-# Berguna untuk mengatasi error "Network is unreachable" di layanan cloud
-# seperti Railway yang sering mencoba IPv6 tetapi gagal.
-old_getaddrinfo = socket.getaddrinfo
-def new_getaddrinfo(*args, **kwargs):
-    responses = old_getaddrinfo(*args, **kwargs)
-    return [r for r in responses if r[0] == socket.AF_INET]
-socket.getaddrinfo = new_getaddrinfo
-# --------------------------------------------------
 
 logger = logging.getLogger(__name__)
 
-MAIL_SERVER   = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-MAIL_PORT     = int(os.getenv("MAIL_PORT", "587"))
-MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
-MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
-MAIL_FROM     = os.getenv("MAIL_FROM", MAIL_USERNAME)
-
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+# Default MAIL_FROM jika tidak ada di env, gunakan email gmail default user
+MAIL_FROM = os.getenv("MAIL_FROM", "9a.13.dwinata1@gmail.com")
 
 def send_otp_email(to_email: str, username: str, otp_code: str) -> bool:
     """
-    Kirim email OTP ke user.
-
-    Args:
-        to_email:  Alamat email tujuan.
-        username:  Nama user (untuk personalisasi).
-        otp_code:  6-digit kode OTP.
-
-    Returns:
-        True jika berhasil, False jika gagal.
+    Kirim email OTP ke user menggunakan Brevo API.
     """
-    if not MAIL_USERNAME or not MAIL_PASSWORD:
-        logger.error("MAIL_USERNAME atau MAIL_PASSWORD belum diset di .env")
+    if not BREVO_API_KEY:
+        logger.error("BREVO_API_KEY belum diset di .env")
         return False
 
     subject = "Kode Verifikasi TaskMan - OTP Anda"
@@ -104,28 +80,35 @@ def send_otp_email(to_email: str, username: str, otp_code: str) -> bool:
     </html>
     """
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"]    = f"TaskMan <{MAIL_FROM}>"
-    msg["To"]      = to_email
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json"
+    }
+    payload = {
+        "sender": {
+            "name": "TaskMan App",
+            "email": MAIL_FROM
+        },
+        "to": [
+            {
+                "email": to_email,
+                "name": username
+            }
+        ],
+        "subject": subject,
+        "htmlContent": html_body
+    }
 
     try:
-        if MAIL_PORT == 465:
-            server = smtplib.SMTP_SSL(MAIL_SERVER, MAIL_PORT, timeout=15)
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        if response.status_code in (200, 201, 202):
+            logger.info(f"OTP email berhasil dikirim ke {to_email} via Brevo API")
+            return True
         else:
-            server = smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=15)
-            server.ehlo()
-            server.starttls()
-            
-        with server:
-            server.login(MAIL_USERNAME, MAIL_PASSWORD)
-            server.sendmail(MAIL_FROM, to_email, msg.as_string())
-        logger.info(f"OTP email berhasil dikirim ke {to_email}")
-        return True
-    except smtplib.SMTPAuthenticationError:
-        logger.error("Gmail SMTP auth gagal — periksa MAIL_USERNAME & MAIL_PASSWORD di .env")
-        return False
+            logger.error(f"Gagal kirim email OTP via Brevo API: {response.status_code} - {response.text}")
+            return False
     except Exception as exc:
-        logger.error(f"Gagal kirim email OTP ke {to_email}: {exc}")
+        logger.error(f"Exception saat kirim email OTP ke {to_email} via Brevo API: {exc}")
         return False
