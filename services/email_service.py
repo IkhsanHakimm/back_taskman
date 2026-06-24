@@ -10,6 +10,17 @@ import smtplib
 import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import socket
+
+# --- HACK: Paksa Python hanya menggunakan IPv4 ---
+# Berguna untuk mengatasi error "Network is unreachable" di layanan cloud
+# seperti Railway yang sering mencoba IPv6 tetapi gagal.
+old_getaddrinfo = socket.getaddrinfo
+def new_getaddrinfo(*args, **kwargs):
+    responses = old_getaddrinfo(*args, **kwargs)
+    return [r for r in responses if r[0] == socket.AF_INET]
+socket.getaddrinfo = new_getaddrinfo
+# --------------------------------------------------
 
 logger = logging.getLogger(__name__)
 
