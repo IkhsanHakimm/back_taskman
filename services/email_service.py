@@ -100,9 +100,14 @@ def send_otp_email(to_email: str, username: str, otp_code: str) -> bool:
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=15, source_address=('0.0.0.0', 0)) as server:
+        if MAIL_PORT == 465:
+            server = smtplib.SMTP_SSL(MAIL_SERVER, MAIL_PORT, timeout=15)
+        else:
+            server = smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=15)
             server.ehlo()
             server.starttls()
+            
+        with server:
             server.login(MAIL_USERNAME, MAIL_PASSWORD)
             server.sendmail(MAIL_FROM, to_email, msg.as_string())
         logger.info(f"OTP email berhasil dikirim ke {to_email}")
